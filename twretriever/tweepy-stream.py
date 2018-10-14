@@ -3,14 +3,18 @@ from tweepy import OAuthHandler
 from tweepy import Stream
 from tweepy import API
 from tweepy import Cursor
-
 import tw_credentials
+import numpy as np
+import pandas as pd
 
 class TWClient():
     def __init__(self,tw_user=None):
         self.auth = TWAuthenticator().authenticate_twitter_app()
         self.tw_client = API(self.auth)
         self.tw_user = tw_user
+
+    def get_tw_client_api(self):
+        return self.tw_client
 
     def get_user_tl_tweets(self,num_tweets):
         tweets = []
@@ -79,13 +83,41 @@ class TWListeneter(StreamListener):
             return False
         print(status)
 
+class TWAnalysis():
+    def tweets_to_data_frame(self,tweets):
+        df = pd.DataFrame(data=[tweet.text for tweet in tweets],columns=['tweet'])
+
+        #df['text']=np.array([tweet.text for tweet in tweets])
+        df['user']=np.array([tweet.user.screen_name for tweet in tweets])
+        df['id']=np.array([tweet.id for tweet in tweets])
+        df['len']=np.array([len(tweet.text) for tweet in tweets])
+        df['date']=np.array([tweet.created_at for tweet in tweets])
+        df['source']=np.array([tweet.source for tweet in tweets])
+        df['likes']=np.array([tweet.favorite_count for tweet in tweets])
+        df['retweets']=np.array([tweet.retweet_count for tweet in tweets])
+        df['replyto']=np.array([tweet.in_reply_to_screen_name for tweet in tweets])
+
+        return df
+
 if __name__ == "__main__":
-    fetched_tweets_filename = "tweets_test.json"
-    hashtag_list = ['tesla','microsoft']
+    tw_client = TWClient()
+    tw_analysis = TWAnalysis()
+    api = tw_client.get_tw_client_api()
 
-    tw_client = TWClient('elonmusk')
-    #print(tw_client.get_user_tl_tweets(1))
-    print(tw_client.get_followers())
+    tweets = api.user_timeline(screen_name='elonmusk',count=10)
 
-    #tw_streamer = TWStreamer()
-    #tw_streamer.stream_tweets(fetched_tweets_filename,hashtag_list)
+    #print(dir(tweets[0]))
+    df = tw_analysis.tweets_to_data_frame(tweets)
+    #print(df.head(50))
+
+    #text
+    #print("Text: " + np.mean(df['text'])).encode('utf-8')
+
+    #mean length
+    print("Average length: " + str(np.mean(df['len'])))
+
+    #most likes
+    print('Most likes: ' + str(np.max(df['likes'])))
+
+    #most retweets
+    print('Most retweets: ' + str(np.max(df['retweets'])))
